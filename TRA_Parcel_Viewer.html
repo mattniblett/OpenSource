@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!-- By Dr. Matthew R. Niblett September 22, 2021 -->
+		<title>TRA and Assessor's Parcels Viewer Reference Tool</title>
+
+		<!-- Pull in Leaflet Stylesheet (e.g. html CSS) and JavaScript, and jQuery javascript, stylesheet, and ui -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+			integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+			crossorigin=""
+		/>
+
+		<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+			integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+			crossorigin="">
+		</script>
+
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+		<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"/>
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+		<style>
+			html, body {
+				margin: 0;
+				padding: 0;
+				height: 100vh;
+				width: 100vw
+			}
+			
+			#autocomplete {
+				z-index: 100;
+				margin-bottom: 5px;
+			}
+			
+			#map {
+				width: 100vw;
+				height: 100vh;
+				margin: 0;
+				padding: 0;
+				top: 0;
+				left: 0;
+				z-index: 0;
+			}
+			
+			cTxt {
+				text-align: center;
+			}
+			
+			.tab4 { 
+				tab-size: 4; 
+			}	
+		</style>
+
+		<!-- Set HTML meta tag properties -->
+		<meta name="description" content="TRA and Parcel Map for Santa Barbara County"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+		<meta name="author" content="Dr. Matthew R. Niblett"/>
+	</head>
+
+	<!-- Set the Body of the page - This is a VERY SIMPLE page literally 5 lines -->
+	<body>
+		<div class="ui-widget" style="text-align:left;">
+				<input id="autocomplete" placeholder="Search for: APN">
+			</div>
+		<div id="map"></div>
+
+		<!-- Page Scripting; Where the Magic Happens! -->
+		<script>
+			//Set the Attribution Variable
+			var attrOptions = {prefix: "Made by the Santa Barbara County Assessor, Mapping Division using <a href='https://leafletjs.com/'>Leaflet</a> | <a href='mailto:AssessorSupport@co.santa-barbara.ca.us?subject=Elections Mapping Tool'>Feedback?</a>"};
+			
+			//Set the leaflet attribution object with the attribution options
+			var attr = L.control.attribution(attrOptions);
+			
+			//TRA Boundary Data
+			traURL = "./data/SBCO_TRA_WGS84.geojson"
+			
+			//Parcel Data 
+			var url = './data/SBC_TaxParcels.geojson' //'./data/Tax_Parcels_WORKING_20200218_WGS84.json';
+			
+			//Arrays for Querying Parcels through jQuery
+			var arr = []; //array containing information passed by user in query input
+			var arr1 = []; 
+			
+			
+			// Set auto-complete source to "empty"
+			$( "#autocomplete" ).autocomplete();
+			
+			// Set the basemap tiles and attribution
+			osmTile = L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+				attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+				});//.addTo(map);
+			
+			// Set up the map
+			var map = L.map('map',{
+				center: [34.809391, -120.082902],
+				zoom: 10,
+				layers: [osmTile],
+				attributionControl: false //DO NOT USE Auto-Generated Attribution
+			});
+			
+			//load in custom attribution
+			attr.addTo(map);
+			
+			// Bind Pop-Up Values
+			function onEachFeature(feature, layer){
+					// does this feature have properties below?
+					if (feature.properties.APN) {
+						layer.bindTooltip(feature.properties.APN); //, {sticky: true});
+						layer._leaflet_id = feature.properties.APN
+						layer.on("click", function(e){
+							tPar.setStyle(pStyle); //resets layer colors
+							layer.setStyle(highlight); //highlights selected
+						});
+					};
+					
+					if (feature.properties.TRA){
+						layer.bindTooltip(feature.properties.TRA, {sticky: true});
+						layer.on({
+							mouseover: hFeature,
+							mouseout: resetHighlight
+						});
+					};
+					//L.tooltip({sticky:true}, feature);
+				};
+			
+			// Set TRA layer styling using this function. Note that parameters could be set and defined as variables in future.
+			function traStyle(feature){
+				return {
+					fillColor: '#FF66FF',
+					weight: 2,
+					opacity: 1.0,
+					color: '#dd1c77',
+					fillOpacity: 0.
+				};
+			};
+			
+			// Feature Interaction
+			
+			// Highlight Feature
+			function hFeature(e){
+				var layer = e.target;
+				
+				layer.setStyle({
+					weight: 5,
+					color: '#666',
+					dashArray: '',
+					fillOpacity: 0.7
+				});
+				
+				if(!L.Browser.ie && !L.Browser.opera && !L.Browser.edge){
+					layer.bringToFront();
+				};
+			};
+			
+			// Reset Highlight
+			function resetHighlight(e){
+				TRA.resetStyle(e.target);
+			};
+			
+			// Set style properties for selected parcels using jquery
+			function pStyle(feature){
+				return {
+					fillColor: 'gray',
+					fillOpacity: 0.5,
+					weight: 2,
+					opacity: 1,
+					color: 'black'
+					//color: '#ffffff',
+					//dashArray: '3'
+				};
+			};
+			
+			var highlight = {
+				'fillColor': 'yellow',
+				'weight': 2,
+				'opacity': 1
+			};
+			
+			//Set the "TRA" Layer objects
+			var TRA = L.geoJSON(null, {onEachFeature: onEachFeature, style: traStyle});
+			$.getJSON(traURL, function(data){
+				TRA.addData(data);
+			});
+			
+			tras = new L.LayerGroup();
+			tras.addLayer(TRA);
+			tras.setZIndex(2);
+			
+			
+			// Load jQuery Data from tParcels
+			var tPar = L.geoJson(null, {onEachFeature: onEachFeature, style: pStyle});
+			$.getJSON(url, function(data){
+				tPar.addData(data);
+				for (i = 0; i < data.features.length; i++){ //loads APN into array for searching
+					arr1.push({label:data.features[i].properties.APN, value:""});
+					//console.log({label:data.features[i].properties.APN, value:""});
+				};
+				addDataToAutocomplete(arr1); //passes array for sorting and to load search control.
+			});
+			
+			// Autocomplete Search
+			function addDataToAutocomplete(arr){
+				arr.sort(function(a, b){ //sort object by name
+					var nameA=a.label, nameB=b.label
+					if (nameA < nameB) //sort string ascending
+						return -1
+					if (nameA > nameB)
+						return 1
+					return 0 //default return value (no sorting)
+				});
+				
+				// The source for autocomplete. https://api.jqueryui.com/autocomplete/#method-option
+				$( "#autocomplete" ).autocomplete("option", "source", arr);
+				$( "#autocomplete" ).on( "autocompleteselect", function( event, ui ){
+					polySelect(ui.item.label); //grabs selected APN name
+					ui.item.value='';
+				});
+			};
+			
+			function polySelect(a){
+				//'clicks' on APN name from search
+				tPar._layers[a].fire('click');
+				//create a temporary 'layer' to view 
+				var layer = tPar._layers[a];
+				map.fitBounds(layer.getBounds()); // zooms to selected poly
+			};
+			
+			var baseLayers = {
+				"Open Street Map": osmTile
+			};
+			
+			var overlays = {
+				"TRAs":tras,
+				"Tax Parcels": tPar
+			};
+			var layerControl = new L.control.layers(baseLayers, overlays, {autoZIndex:false}).addTo(map);
+		</script>
+	</body>
+</html>

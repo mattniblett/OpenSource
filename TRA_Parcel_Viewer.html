@@ -73,10 +73,10 @@
 			var attr = L.control.attribution(attrOptions);
 			
 			//TRA Boundary Data
-			traURL = "./data/SBCO_TRA_WGS84.geojson"
+			traURL = "./data/TRAs.geojson";
 			
 			//Parcel Data 
-			var url = './data/SBC_TaxParcels.geojson' //'./data/Tax_Parcels_WORKING_20200218_WGS84.json';
+			var url = './data/Tax_Parcels.geojson'; 
 			
 			//Arrays for Querying Parcels through jQuery
 			var arr = []; //array containing information passed by user in query input
@@ -194,7 +194,6 @@
 				tPar.addData(data);
 				for (i = 0; i < data.features.length; i++){ //loads APN into array for searching
 					arr1.push({label:data.features[i].properties.APN, value:""});
-					//console.log({label:data.features[i].properties.APN, value:""});
 				};
 				addDataToAutocomplete(arr1); //passes array for sorting and to load search control.
 			});
